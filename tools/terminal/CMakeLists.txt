@@ -7,21 +7,19 @@ project(RealsenseToolsTerminal)
 include_directories(
         ../../common
         ../../third-party
-        ../../third-party/tclap/include
         )
 set(RS_TERMINAL_SOURCES
         rs-terminal.cpp
         auto-complete.cpp
         auto-complete.h
         ../../common/parser.hpp
-        ../../common/utilities/string/string-utilities.h
     )
 add_executable(rs-terminal ${RS_TERMINAL_SOURCES})
 set_property(TARGET rs-terminal PROPERTY CXX_STANDARD 11)
 if(WIN32 OR ANDROID)
-    target_link_libraries(rs-terminal ${DEPENDENCIES})
+    target_link_libraries(rs-terminal ${DEPENDENCIES} tclap )
 else()
-    target_link_libraries(rs-terminal -lpthread ${DEPENDENCIES})
+    target_link_libraries(rs-terminal -lpthread ${DEPENDENCIES} tclap )
 endif()
 set_target_properties (rs-terminal PROPERTIES
     FOLDER Tools

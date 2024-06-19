@@ -1,7 +1,7 @@
 /* License: Apache 2.0. See LICENSE file in root directory.
 Copyright(c) 2017 Intel Corporation. All Rights Reserved. */
 
-#include "python.hpp"
+#include "pyrealsense2.h"
 #include <librealsense2/hpp/rs_internal.hpp>
 #include <cstring>
 
@@ -42,13 +42,7 @@ void init_internal(py::module &m) {
     py::class_< rs2_software_video_frame >( m,
                                             "software_video_frame",
                                             "All the parameters required to define a video frame" )
-        .def( py::init( []() {
-            rs2_software_video_frame f;
-            f.deleter = nullptr;
-            f.pixels = nullptr;
-            f.profile = nullptr;
-            return f;
-        } ) )  // guarantee deleter is set to nullptr
+        .def( py::init( []() { return rs2_software_video_frame{ 0 }; } ) )
         .def_property(
             "pixels",
             []( const rs2_software_video_frame & self ) {
@@ -91,7 +85,7 @@ void init_internal(py::module &m) {
                                                          // data.format -> underlying data type
                     std::memcpy( self.pixels, data.ptr, data.size * data.itemsize );
                     self.deleter = []( void * ptr ) {
-                        delete[] ptr;
+                        delete[]( uint8_t * ) ptr;
                     };
                 }
             } )
@@ -100,6 +94,7 @@ void init_internal(py::module &m) {
         .def_readwrite("timestamp", &rs2_software_video_frame::timestamp)
         .def_readwrite("domain", &rs2_software_video_frame::domain)
         .def_readwrite("frame_number", &rs2_software_video_frame::frame_number)
+        .def_readwrite("depth_units", &rs2_software_video_frame::depth_units)
         .def_property(
             "profile",
             []( const rs2_software_video_frame & self ) {
@@ -127,7 +122,8 @@ void init_internal(py::module &m) {
 
     py::class_<rs2_software_motion_frame> software_motion_frame(m, "software_motion_frame", "All the parameters "
                                                                 "required to define a motion frame.");
-    software_motion_frame.def(py::init([]() { rs2_software_motion_frame f{}; f.deleter = nullptr; return f; })) // guarantee deleter is set to nullptr
+    software_motion_frame  //
+        .def( py::init( []() { return rs2_software_motion_frame{ 0 }; } ) )
         .def_property("data", [](const rs2_software_motion_frame& self) -> rs2_vector {
             auto data = reinterpret_cast<const float*>(self.data);
             return rs2_vector{ data[0], data[1], data[2] };
@@ -138,7 +134,7 @@ void init_internal(py::module &m) {
             dptr[0] = data.x;
             dptr[1] = data.y;
             dptr[2] = data.z;
-            self.deleter = [](void* ptr){ delete[] ptr; };
+            self.deleter = [](void* ptr){ delete[]( float * ) ptr; };
         })
         .def_readwrite("timestamp", &rs2_software_motion_frame::timestamp)
         .def_readwrite("domain", &rs2_software_motion_frame::domain)
@@ -148,14 +144,21 @@ void init_internal(py::module &m) {
 
     py::class_<rs2_software_pose_frame> software_pose_frame(m, "software_pose_frame", "All the parameters "
                                                             "required to define a pose frame.");
-    software_pose_frame.def(py::init([]() { rs2_software_pose_frame f{}; f.deleter = nullptr; return f; })) // guarantee deleter is set to nullptr
-        .def_property("data", [](const rs2_software_pose_frame& self) -> rs2_pose {
-            return *reinterpret_cast<const rs2_pose*>(self.data);
-        }, [](rs2_software_pose_frame& self, rs2_pose data) {
-            if (self.deleter) self.deleter(self.data);
-            self.data = new rs2_pose(data);
-            self.deleter = [](void* ptr){ delete[] ptr; };
-        })
+    software_pose_frame  //
+        .def( py::init( []() { return rs2_software_pose_frame{ 0 }; } ) )
+        .def_property(
+            "data",
+            []( const rs2_software_pose_frame & self ) -> rs2_pose {
+                return *reinterpret_cast< const rs2_pose * >( self.data );
+            },
+            []( rs2_software_pose_frame & self, rs2_pose data ) {
+                if( self.deleter )
+                    self.deleter( self.data );
+                self.data = new rs2_pose( data );
+                self.deleter = []( void * ptr ) {
+                    delete(rs2_pose *)ptr;
+                };
+            } )
         .def_readwrite("timestamp", &rs2_software_pose_frame::timestamp)
         .def_readwrite("domain", &rs2_software_pose_frame::domain)
         .def_readwrite("frame_number", &rs2_software_pose_frame::frame_number)
